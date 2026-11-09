@@ -1,12 +1,12 @@
 const colors = {
   primary: '#F28C28',
   primaryDark: '#D96B12',
-  secondary: '#D9362B',
-  background: '#FFF8EF',
+  secondary: '#351510',
+  background: '#F7F5F2',
   surface: '#FFFFFF',
-  text: '#29231F',
-  textSecondary: '#82766D',
-  border: '#F0E4D8',
+  text: '#351510',
+  textSecondary: '#727982',
+  border: '#E9E4DE',
   success: '#3D995B',
 };
 
