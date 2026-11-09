@@ -3,23 +3,17 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // Paleta de colores sugerida
-const Colors = {
-  primary: '#0F2B3D',
-  accent: '#F28C28',
-  background: '#F5F5F5',
-};
+const Colors = { accent: '#F28C28', background: '#F7F5F2' };
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerStyle: { backgroundColor: Colors.primary },
-        headerTintColor: '#fff',
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { backgroundColor: '#fff', paddingBottom: 5 },
-      }}
-    >
+    <Tabs screenOptions={{
+      headerShown: false,
+      tabBarActiveTintColor: Colors.accent,
+      tabBarInactiveTintColor: '#87909A',
+      tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
+      tabBarStyle: { height: 62, paddingTop: 7, paddingBottom: 5, backgroundColor: '#FFFFFF', borderTopColor: '#ECE8E3' },
+    }}>
       <Tabs.Screen
         name="index"
         options={{
