@@ -2,18 +2,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import colors from '../constants/colors';
 
 export default function MesaCard({ mesa, onReservar }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, !mesa.activa && styles.inactive]}>
       <View style={styles.infoContainer}>
         <Text style={styles.title}>{mesa.nombre}</Text>
-        <Text style={styles.subtitle}>
-          <Ionicons name="location-outline" size={14} /> Zona: {mesa.zona}
-        </Text>
-        <Text style={styles.subtitle}>
-          <Ionicons name="people-outline" size={14} /> Capacidad: {mesa.capacidad} personas
-        </Text>
+        <Text style={styles.subtitle}><Ionicons name="location-outline" size={14} color={colors.textSecondary} /> Zona: {mesa.zona}</Text>
+        <Text style={styles.subtitle}><Ionicons name="people-outline" size={14} color={colors.textSecondary} /> Capacidad: {mesa.capacidad} personas</Text>
       </View>
       
       <TouchableOpacity 
@@ -31,15 +28,17 @@ export default function MesaCard({ mesa, onReservar }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
     padding: 15,
     marginVertical: 8,
     marginHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    elevation: 3, // Sombra en Android
+    borderWidth: 1,
+    borderColor: colors.border,
+    elevation: 1,
     shadowColor: '#000', // Sombra en iOS
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -51,16 +50,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0F2B3D',
+    color: colors.secondary,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   button: {
-    backgroundColor: '#F28C28',
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 6,
@@ -69,7 +68,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
   },
   buttonText: {
-    color: '#fff',
+    color: colors.surface,
     fontWeight: 'bold',
   },
+  inactive: { opacity: 0.55 },
 });
