@@ -1,294 +1,110 @@
-// app/(tabs)/index.js
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { supabase } from '../../services/supabase';
 
-// Paleta de colores basada en tu Figma
-const Colors = {
-  primary: '#3A1810', // Café oscuro del hero
-  accent: '#F38020', // Naranja de los botones
-  background: '#F5F5F5',
-  cardBg: '#FFFFFF',
-  text: '#333333',
-  textMuted: '#888888'
-};
+const C = { ink: '#351510', orange: '#F58A24', cream: '#F7F5F2', muted: '#727982', line: '#E9E4DE', white: '#FFFFFF', pale: '#FFF3E4' };
 
 export default function InicioScreen() {
   const [mesas, setMesas] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [mesaSeleccionada, setMesaSeleccionada] = useState(null);
-  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const fetchMesas = async () => {
+  const cargarMesas = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    setError('');
+    const { data, error: queryError } = await supabase
       .from('mesas')
       .select('*')
       .order('nombre');
-
-    if (!error && data) {
-      setMesas(data);
-    }
+    if (queryError) setError('No pudimos cargar las mesas. Desliza hacia abajo para intentar de nuevo.');
+    else setMesas(data || []);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchMesas();
   }, []);
 
-  const handleContinuar = () => {
-    if (mesaSeleccionada) {
-      router.push(`/reservar/${mesaSeleccionada}`);
-    }
+  useEffect(() => { cargarMesas(); }, [cargarMesas]);
+
+  const reservar = () => {
+    if (mesaSeleccionada) router.push(`/reservar/${mesaSeleccionada}`);
   };
 
-  if (loading && mesas.length === 0) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={Colors.accent} />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchMesas} colors={[Colors.accent]} />}
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={cargarMesas} tintColor={C.orange} />}
       >
-        {/* Header superior */}
         <View style={styles.header}>
-          <View style={styles.logoCircle}></View>
-          <View>
-            <Text style={styles.headerTitle}>KONYS PIZZA</Text>
-            <Text style={styles.headerSubtitle}>La pizza más icónica</Text>
-          </View>
+          <View style={styles.brandMark}><Ionicons name="pizza" size={21} color={C.white} /></View>
+          <View style={styles.brandText}><Text style={styles.brand}>KONYS PIZZA</Text><Text style={styles.tagline}>La pizza más icónica</Text></View>
+          <Ionicons name="ellipsis-horizontal" size={22} color={C.ink} />
         </View>
 
-        {/* Tarjeta Hero (Café oscuro) */}
-        <View style={styles.heroCard}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>RESERVAS • BUCARAMANGA</Text>
-          </View>
+        <View style={styles.hero}>
+          <Text style={styles.badge}>RESERVAS · BUCARAMANGA</Text>
           <Text style={styles.heroTitle}>Una mesa te espera.</Text>
-          <Text style={styles.heroText}>Reserva en pocos pasos y disfruta tu visita a Konys Pizza.</Text>
-          
-          <View style={styles.heroImageContainer}>
-            <View style={styles.pizzaMockIcon}></View>
-            <Text style={styles.heroImageText}>RECIÉN HORNEADA</Text>
+          <Text style={styles.heroBody}>Reserva en pocos pasos y disfruta tu visita a Konys Pizza.</Text>
+          <View style={styles.pizzaPanel}>
+            <View style={styles.pizzaCircle}><Ionicons name="pizza" size={54} color={C.orange} /></View>
+            <Text style={styles.pizzaCaption}>RECIÉN HORNEADA</Text>
           </View>
         </View>
 
-        {/* Tarjeta de Horarios */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Horarios de atención</Text>
-          <View style={styles.horarioRow}>
-            <Ionicons name="sunny" size={16} color={Colors.accent} />
-            <Text style={styles.horarioText}>Almuerzo   12:30 – 2:30 p. m.</Text>
-          </View>
-          <View style={styles.horarioRow}>
-            <Ionicons name="moon" size={16} color={Colors.textMuted} />
-            <Text style={styles.horarioText}>Noche        5:00 – 11:00 p. m.</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Horarios de atención</Text>
+          <View style={styles.hoursRow}><Ionicons name="sunny" size={16} color={C.orange} /><Text style={styles.body}>Almuerzo · 12:30 – 2:30 p. m.</Text></View>
+          <View style={styles.hoursRow}><Ionicons name="moon" size={16} color={C.ink} /><Text style={styles.body}>Noche · 5:00 – 11:00 p. m.</Text></View>
         </View>
 
-        {/* Tarjeta de Mesas */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Mesas disponibles</Text>
-          {mesas.map((mesa) => (
-            <TouchableOpacity 
-              key={mesa.id} 
-              style={[
-                styles.mesaItem, 
-                mesaSeleccionada === mesa.id && styles.mesaItemSelected,
-                !mesa.activa && styles.mesaItemDisabled
-              ]}
-              onPress={() => mesa.activa && setMesaSeleccionada(mesa.id)}
-              disabled={!mesa.activa}
-            >
-              <Text style={[styles.mesaItemText, !mesa.activa && styles.mesaItemTextDisabled]}>
-                {mesa.nombre} · {mesa.zona} · {mesa.capacidad} personas · {mesa.activa ? 'Disponible' : 'Inactiva'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {mesas.length === 0 && <Text style={styles.emptyText}>No hay mesas configuradas.</Text>}
+          <View style={styles.cardHeading}><Text style={styles.sectionTitle}>Mesas disponibles</Text><Text style={styles.count}>{mesas.filter((mesa) => mesa.activa).length} activas</Text></View>
+          {loading && mesas.length === 0 ? <ActivityIndicator color={C.orange} style={styles.loader} /> : null}
+          {error ? <Pressable onPress={cargarMesas}><Text style={styles.error}>{error}</Text></Pressable> : null}
+          {!loading && !error && mesas.length === 0 ? <Text style={styles.muted}>Aún no hay mesas registradas.</Text> : null}
+          {mesas.map((mesa) => {
+            const selected = mesaSeleccionada === mesa.id;
+            return (
+              <Pressable
+                key={mesa.id}
+                onPress={() => mesa.activa && setMesaSeleccionada(selected ? null : mesa.id)}
+                disabled={!mesa.activa}
+                style={[styles.tableRow, selected && styles.tableRowSelected, !mesa.activa && styles.inactive]}
+              >
+                <View style={[styles.tableIcon, selected && styles.tableIconSelected]}><Ionicons name="restaurant-outline" size={17} color={selected ? C.white : C.ink} /></View>
+                <View style={styles.tableInfo}><Text style={styles.tableName}>{mesa.nombre}</Text><Text style={styles.muted}>{mesa.zona} · {mesa.capacidad} personas</Text></View>
+                <Text style={[styles.status, !mesa.activa && styles.muted]}>{mesa.activa ? 'Disponible' : 'Inactiva'}</Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Pressable style={[styles.button, !mesaSeleccionada && styles.buttonDisabled]} onPress={reservar} disabled={!mesaSeleccionada}>
+          <Text style={styles.buttonText}>Reservar mesa</Text><Ionicons name="arrow-forward" size={18} color={C.white} />
+        </Pressable>
+        <View style={styles.bottomNote}><Ionicons name="heart" size={14} color={C.orange} /><Text style={styles.muted}>Te esperamos para compartir algo delicioso.</Text></View>
       </ScrollView>
-
-      {/* Botón inferior fijo */}
-      <View style={styles.footer}>
-        <TouchableOpacity 
-          style={[styles.mainButton, !mesaSeleccionada && styles.mainButtonDisabled]}
-          onPress={handleContinuar}
-          disabled={!mesaSeleccionada}
-        >
-          <Text style={styles.mainButtonText}>Reservar mesa</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 100, // Espacio para el botón fijo
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.accent,
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  heroCard: {
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  badge: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 15,
-  },
-  badgeText: {
-    color: '#4CB9E7', // Color azulado del mockup
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  heroTitle: {
-    color: '#FFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  heroText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  heroImageContainer: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pizzaMockIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#E8D4B4',
-    marginRight: 15,
-  },
-  heroImageText: {
-    color: Colors.accent,
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  card: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 15,
-  },
-  horarioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  horarioText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: Colors.text,
-  },
-  mesaItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-  },
-  mesaItemSelected: {
-    backgroundColor: 'rgba(243, 128, 32, 0.1)', // Fondo naranjita al seleccionar
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    borderBottomWidth: 0,
-  },
-  mesaItemDisabled: {
-    opacity: 0.5,
-  },
-  mesaItemText: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  mesaItemTextDisabled: {
-    textDecorationLine: 'line-through',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    fontStyle: 'italic',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.background,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#EEE',
-  },
-  mainButton: {
-    backgroundColor: Colors.accent,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  mainButtonDisabled: {
-    backgroundColor: '#CCC',
-  },
-  mainButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-}); 
+  safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 26 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  brandMark: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' },
+  brandText: { flex: 1 }, brand: { color: C.ink, fontSize: 14, fontWeight: '900', letterSpacing: 0.6 }, tagline: { color: C.muted, fontSize: 10, marginTop: 2 },
+  hero: { backgroundColor: C.ink, borderRadius: 21, padding: 18, marginBottom: 14 },
+  badge: { alignSelf: 'flex-start', backgroundColor: '#183747', color: '#FFD18D', overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  heroTitle: { color: C.white, fontSize: 23, fontWeight: '900', marginTop: 12 }, heroBody: { color: '#E6D9D5', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  pizzaPanel: { backgroundColor: C.white, borderRadius: 14, marginTop: 14, height: 92, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
+  pizzaCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFE4B8', alignItems: 'center', justifyContent: 'center' }, pizzaCaption: { fontSize: 9, color: C.orange, fontWeight: '900', letterSpacing: 0.7 },
+  card: { backgroundColor: C.white, borderRadius: 17, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: C.line, elevation: 1 },
+  sectionTitle: { color: C.ink, fontSize: 14, fontWeight: '800', marginBottom: 10 }, cardHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, count: { color: C.muted, fontSize: 10, marginBottom: 10 },
+  hoursRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 4 }, body: { color: C.muted, fontSize: 12 },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#F1EEEA', gap: 9 }, tableRowSelected: { backgroundColor: C.pale, borderRadius: 10, paddingHorizontal: 7 }, tableIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: '#F2EEE9', alignItems: 'center', justifyContent: 'center' }, tableIconSelected: { backgroundColor: C.ink }, tableInfo: { flex: 1 }, tableName: { color: C.ink, fontSize: 12, fontWeight: '800', textTransform: 'capitalize' }, status: { color: '#45915D', fontSize: 9, fontWeight: '700' }, inactive: { opacity: 0.45 },
+  muted: { color: C.muted, fontSize: 11, lineHeight: 16 }, error: { color: '#B43D34', fontSize: 12, lineHeight: 18 }, loader: { padding: 14 },
+  button: { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 15, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, buttonDisabled: { opacity: 0.45 }, buttonText: { color: C.white, fontWeight: '900', fontSize: 13 }, bottomNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 18 },
+});
