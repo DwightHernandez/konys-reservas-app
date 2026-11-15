@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import { DIAS_SEMANA, JORNADAS_DEFAULT, fechaLocalISO } from '../../utils/reservas';
 
-const C = { ink: '#351510', orange: '#F58A24', cream: '#F7F5F2', muted: '#727982', line: '#E9E4DE', white: '#FFFFFF', pale: '#FFF3E4', green: '#45915D', red: '#B43D34' };
+const C = { ink: '#F5EEE8', hero: '#321C17', orange: '#F58A24', cream: '#171412', muted: '#B6AAA2', line: '#403733', white: '#FFFFFF', surface: '#251F1B', pale: '#392B24', green: '#69B77D', red: '#F08275' };
 const SECCIONES = [{ id: 'mesas', label: 'Mesas', icon: 'grid-outline' }, { id: 'horarios', label: 'Horarios', icon: 'time-outline' }, { id: 'reservas', label: 'Reservas', icon: 'calendar-outline' }, { id: 'carta', label: 'Carta', icon: 'restaurant-outline' }];
 const CATEGORIAS = ['pizzas', 'entradas', 'postres', 'bebidas'];
 const ADMIN_PIN = process.env.EXPO_PUBLIC_ADMIN_PIN || '1234';
@@ -27,6 +27,8 @@ export default function AdminScreen() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({});
+  const [bookingConfirmation, setBookingConfirmation] = useState(null);
+  const [bookingSaving, setBookingSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true); setError('');
@@ -102,8 +104,15 @@ export default function AdminScreen() {
   };
 
   const changeBookingState = async (reserva, estado) => {
+    setBookingConfirmation({ reserva, estado });
+  };
+
+  const guardarEstadoReserva = async (reserva, estado) => {
+    setBookingSaving(true);
     const { error: updateError } = await supabase.from('reservas').update({ estado }).eq('id', reserva.id);
-    if (updateError) Alert.alert('No se pudo cambiar el estado', updateError.message); else loadData();
+    setBookingSaving(false);
+    if (updateError) Alert.alert('No se pudo cambiar el estado', updateError.message);
+    else { setBookingConfirmation(null); loadData(); }
   };
 
   const dayReservations = useMemo(() => {
@@ -154,6 +163,12 @@ export default function AdminScreen() {
       </> : null}
     </ScrollView>
     <RecordModal visible={Boolean(modal)} modal={modal} form={form} setField={setField} onClose={closeModal} onSave={saveRecord} saving={saving} />
+    <BookingConfirmationModal
+      confirmation={bookingConfirmation}
+      saving={bookingSaving}
+      onClose={() => { if (!bookingSaving) setBookingConfirmation(null); }}
+      onConfirm={() => bookingConfirmation && guardarEstadoReserva(bookingConfirmation.reserva, bookingConfirmation.estado)}
+    />
   </SafeAreaView>;
 }
 
@@ -163,6 +178,39 @@ function BookingCard({ reserva, mesa, onState }) {
   const date = new Date(`${reserva.fecha}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
   const stateColor = reserva.estado === 'cancelada' ? C.red : reserva.estado === 'completada' ? C.muted : C.green;
   return <View style={styles.bookingCard}><View style={styles.bookingHead}><View style={styles.bookingIcon}><Ionicons name="calendar" size={15} color={C.orange} /></View><View style={{ flex: 1 }}><Text style={styles.itemTitle}>{date} · {String(reserva.hora_inicio || '').slice(0, 5)}</Text><Text style={styles.muted}>{mesa?.nombre || `Mesa ${reserva.mesa_id}`} · {reserva.num_personas} personas</Text></View><Text style={[styles.state, { color: stateColor }]}>{reserva.estado}</Text></View><Text style={styles.clientName}>{reserva.cliente_nombre}</Text>{reserva.cliente_contacto ? <Text style={styles.muted}>{reserva.cliente_contacto}</Text> : null}<View style={styles.bookingActions}><Pressable onPress={() => onState(reserva, 'completada')}><Text style={styles.link}>Completar</Text></Pressable><Pressable onPress={() => onState(reserva, 'cancelada')}><Text style={[styles.link, { color: C.red }]}>Cancelar</Text></Pressable></View></View>;
+}
+
+function BookingConfirmationModal({ confirmation, saving, onClose, onConfirm }) {
+  if (!confirmation) return null;
+  const { reserva, estado } = confirmation;
+  const isCancel = estado === 'cancelada';
+  const actionLabel = isCancel ? 'Cancelar reserva' : 'Completar reserva';
+  const title = isCancel ? '¿Cancelar esta reserva?' : '¿Completar esta reserva?';
+  const date = new Date(`${reserva.fecha}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+  return <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.confirmShade}>
+      <View style={styles.confirmCard}>
+        <View style={[styles.confirmIcon, isCancel && styles.confirmIconDanger]}>
+          <Ionicons name={isCancel ? 'close-circle-outline' : 'checkmark-circle-outline'} size={25} color={isCancel ? C.red : C.green} />
+        </View>
+        <Text style={styles.confirmTitle}>{title}</Text>
+        <Text style={styles.confirmBody}>{isCancel
+          ? 'La reserva se marcará como cancelada y se conservará en el historial.'
+          : 'La reserva se marcará como completada y se conservará en el historial.'}</Text>
+        <View style={styles.confirmSummary}>
+          <Text style={styles.confirmName}>{reserva.cliente_nombre}</Text>
+          <Text style={styles.confirmDetail}>{date} · {String(reserva.hora_inicio || '').slice(0, 5)}</Text>
+          <Text style={styles.confirmDetail}>{reserva.num_personas} personas</Text>
+        </View>
+        <View style={styles.confirmActions}>
+          <Pressable style={styles.confirmCancelButton} onPress={onClose} disabled={saving}><Text style={styles.confirmCancelText}>Volver</Text></Pressable>
+          <Pressable style={[styles.confirmActionButton, isCancel && styles.confirmActionDanger, saving && styles.disabledButton]} onPress={onConfirm} disabled={saving}>
+            {saving ? <ActivityIndicator size="small" color={C.white} /> : <Text style={styles.confirmActionText}>{actionLabel}</Text>}
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  </Modal>;
 }
 
 function RecordModal({ visible, modal, form, setField, onClose, onSave, saving }) {
@@ -187,11 +235,12 @@ function Choice({ label, active, onPress }) { return <Pressable onPress={onPress
 function Toggle({ label, value, onValueChange }) { return <View style={styles.toggleRow}><Text style={styles.itemTitle}>{label}</Text><Switch value={Boolean(value)} onValueChange={onValueChange} trackColor={{ false: '#D4D7DB', true: '#F7C489' }} thumbColor={value ? C.orange : '#F6F6F6'} /></View>; }
 
 const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 28 }, loginContent: { flexGrow: 1, justifyContent: 'center', padding: 18 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }, brandMark: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' }, brand: { color: C.ink, fontSize: 13, fontWeight: '900' }, muted: { color: C.muted, fontSize: 10, lineHeight: 15 }, hero: { backgroundColor: C.ink, borderRadius: 19, padding: 18 }, badge: { color: '#FFD18D', fontSize: 9, fontWeight: '900', letterSpacing: 0.7 }, heroTitle: { color: C.white, fontSize: 20, fontWeight: '900', marginTop: 12 }, heroBody: { color: '#E6D9D5', fontSize: 11, marginTop: 5 }, loginCard: { backgroundColor: C.white, padding: 18, borderRadius: 16, marginTop: 13, borderWidth: 1, borderColor: C.line, gap: 10 }, sectionTitle: { color: C.ink, fontSize: 13, fontWeight: '900' }, input: { backgroundColor: C.white, borderRadius: 9, borderWidth: 1, borderColor: C.line, paddingHorizontal: 11, paddingVertical: 10, color: C.ink, fontSize: 12 }, primaryButton: { backgroundColor: C.orange, paddingVertical: 13, paddingHorizontal: 15, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, marginTop: 10 }, primaryButtonText: { color: C.white, fontSize: 12, fontWeight: '900' },
-  topHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, eyebrow: { color: C.orange, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 }, pageTitle: { color: C.ink, fontSize: 19, fontWeight: '900', marginTop: 3 }, logout: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: C.white, borderRadius: 11, borderWidth: 1, borderColor: C.line }, stats: { flexDirection: 'row', gap: 8, marginTop: 13 }, stat: { flex: 1, borderRadius: 12, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, padding: 10, alignItems: 'flex-start' }, statValue: { color: C.ink, fontSize: 19, fontWeight: '900', marginTop: 3 }, statLabel: { color: C.muted, fontSize: 8, marginTop: 1 }, adminTabs: { gap: 7, paddingVertical: 13 }, adminTab: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, paddingHorizontal: 11, paddingVertical: 9, borderRadius: 16 }, adminTabActive: { backgroundColor: C.ink, borderColor: C.ink }, adminTabText: { color: C.muted, fontSize: 10, fontWeight: '700' }, adminTabTextActive: { color: C.white },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 6 }, listCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: C.white, borderRadius: 13, borderWidth: 1, borderColor: C.line, padding: 11, marginBottom: 9 }, listIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, listBody: { flex: 1 }, itemTitle: { color: C.ink, fontSize: 11, fontWeight: '800', textTransform: 'capitalize' }, actions: { flexDirection: 'row', gap: 14, marginTop: 8 }, action: { flexDirection: 'row', alignItems: 'center', gap: 3 }, actionText: { color: C.ink, fontSize: 9, fontWeight: '700' }, error: { color: C.red, fontSize: 10, lineHeight: 15, marginVertical: 5 },
-  infoCard: { backgroundColor: '#FFF1DF', borderRadius: 13, padding: 13, marginBottom: 10 }, dayCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, dayTitle: { color: C.ink, fontSize: 12, fontWeight: '900', textTransform: 'capitalize', marginBottom: 5 }, hourRow: { borderTopWidth: 1, borderColor: '#F1EEEA', paddingTop: 8, marginTop: 5 }, hourTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, timeInputs: { flexDirection: 'row', alignItems: 'center', gap: 7 }, smallInput: { width: 62, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10 }, durationInput: { width: 52, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10, marginLeft: 'auto' },
-  filters: { flexDirection: 'row', gap: 7, marginBottom: 10 }, filter: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 }, filterActive: { backgroundColor: C.orange, borderColor: C.orange }, filterText: { color: C.muted, fontSize: 10, fontWeight: '700' }, filterTextActive: { color: C.white }, bookingCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, bookingHead: { flexDirection: 'row', alignItems: 'center', gap: 8 }, bookingIcon: { width: 29, height: 29, borderRadius: 9, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, state: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase' }, clientName: { color: C.ink, fontSize: 12, fontWeight: '800', marginTop: 9 }, bookingActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 8 }, link: { color: C.green, fontSize: 9, fontWeight: '800' },
-  modalShade: { flex: 1, backgroundColor: 'rgba(25,18,15,0.45)', justifyContent: 'flex-end' }, modalCard: { backgroundColor: C.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 17, maxHeight: '88%' }, modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, modalTitle: { color: C.ink, fontSize: 16, fontWeight: '900', textTransform: 'capitalize' }, formField: { marginBottom: 10 }, formLabel: { color: C.ink, fontSize: 10, fontWeight: '800', marginBottom: 5, textTransform: 'capitalize' }, choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }, choice: { borderWidth: 1, borderColor: C.line, backgroundColor: C.white, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7 }, choiceActive: { borderColor: C.orange, backgroundColor: C.orange }, choiceText: { color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'capitalize' }, choiceTextActive: { color: C.white }, toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
-  imagePreview: { height: 150, marginBottom: 12, borderRadius: 11, overflow: 'hidden', backgroundColor: '#FFF0DE', alignItems: 'center', justifyContent: 'center' }, imagePreviewImage: { width: '100%', height: '100%' }, previewError: { color: C.red, fontSize: 11, lineHeight: 16, padding: 12, textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18 }, brandMark: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' }, brand: { color: C.ink, fontSize: 13, fontWeight: '900' }, muted: { color: C.muted, fontSize: 10, lineHeight: 15 }, hero: { backgroundColor: C.hero, borderRadius: 19, padding: 18 }, badge: { color: '#FFD18D', fontSize: 9, fontWeight: '900', letterSpacing: 0.7 }, heroTitle: { color: C.white, fontSize: 20, fontWeight: '900', marginTop: 12 }, heroBody: { color: '#E6D9D5', fontSize: 11, marginTop: 5 }, loginCard: { backgroundColor: C.surface, padding: 18, borderRadius: 16, marginTop: 13, borderWidth: 1, borderColor: C.line, gap: 10 }, sectionTitle: { color: C.ink, fontSize: 13, fontWeight: '900' }, input: { backgroundColor: C.surface, borderRadius: 9, borderWidth: 1, borderColor: C.line, paddingHorizontal: 11, paddingVertical: 10, color: C.ink, fontSize: 12 }, primaryButton: { backgroundColor: C.orange, paddingVertical: 13, paddingHorizontal: 15, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, marginTop: 10 }, primaryButtonText: { color: C.white, fontSize: 12, fontWeight: '900' },
+  topHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, eyebrow: { color: C.orange, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 }, pageTitle: { color: C.ink, fontSize: 19, fontWeight: '900', marginTop: 3 }, logout: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface, borderRadius: 11, borderWidth: 1, borderColor: C.line }, stats: { flexDirection: 'row', gap: 8, marginTop: 13 }, stat: { flex: 1, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, padding: 10, alignItems: 'flex-start' }, statValue: { color: C.ink, fontSize: 19, fontWeight: '900', marginTop: 3 }, statLabel: { color: C.muted, fontSize: 8, marginTop: 1 }, adminTabs: { gap: 7, paddingVertical: 13 }, adminTab: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, paddingHorizontal: 11, paddingVertical: 9, borderRadius: 16 }, adminTabActive: { backgroundColor: C.hero, borderColor: C.hero }, adminTabText: { color: C.muted, fontSize: 10, fontWeight: '700' }, adminTabTextActive: { color: C.white },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 6 }, listCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: C.surface, borderRadius: 13, borderWidth: 1, borderColor: C.line, padding: 11, marginBottom: 9 }, listIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, listBody: { flex: 1 }, itemTitle: { color: C.ink, fontSize: 11, fontWeight: '800', textTransform: 'capitalize' }, actions: { flexDirection: 'row', gap: 14, marginTop: 8 }, action: { flexDirection: 'row', alignItems: 'center', gap: 3 }, actionText: { color: C.ink, fontSize: 9, fontWeight: '700' }, error: { color: C.red, fontSize: 10, lineHeight: 15, marginVertical: 5 },
+  infoCard: { backgroundColor: C.pale, borderRadius: 13, padding: 13, marginBottom: 10 }, dayCard: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, dayTitle: { color: C.ink, fontSize: 12, fontWeight: '900', textTransform: 'capitalize', marginBottom: 5 }, hourRow: { borderTopWidth: 1, borderColor: C.line, paddingTop: 8, marginTop: 5 }, hourTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, timeInputs: { flexDirection: 'row', alignItems: 'center', gap: 7 }, smallInput: { width: 62, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10 }, durationInput: { width: 52, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10, marginLeft: 'auto' },
+  filters: { flexDirection: 'row', gap: 7, marginBottom: 10 }, filter: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 }, filterActive: { backgroundColor: C.orange, borderColor: C.orange }, filterText: { color: C.muted, fontSize: 10, fontWeight: '700' }, filterTextActive: { color: C.white }, bookingCard: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, bookingHead: { flexDirection: 'row', alignItems: 'center', gap: 8 }, bookingIcon: { width: 29, height: 29, borderRadius: 9, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, state: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase' }, clientName: { color: C.ink, fontSize: 12, fontWeight: '800', marginTop: 9 }, bookingActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 8 }, link: { color: C.green, fontSize: 9, fontWeight: '800' },
+  confirmShade: { flex: 1, backgroundColor: 'rgba(10,8,7,0.72)', justifyContent: 'center', alignItems: 'center', padding: 22 }, confirmCard: { width: '100%', maxWidth: 390, backgroundColor: C.surface, borderColor: C.line, borderWidth: 1, borderRadius: 20, padding: 20, alignItems: 'center', elevation: 12 }, confirmIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }, confirmIconDanger: { backgroundColor: '#422723' }, confirmTitle: { color: C.ink, fontSize: 17, fontWeight: '900', textAlign: 'center' }, confirmBody: { color: C.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 }, confirmSummary: { width: '100%', backgroundColor: C.cream, borderRadius: 12, padding: 12, marginTop: 15, borderWidth: 1, borderColor: C.line }, confirmName: { color: C.ink, fontSize: 12, fontWeight: '800', textTransform: 'capitalize' }, confirmDetail: { color: C.muted, fontSize: 10, marginTop: 4, textTransform: 'capitalize' }, confirmActions: { width: '100%', flexDirection: 'row', gap: 9, marginTop: 17 }, confirmCancelButton: { flex: 1, minHeight: 44, borderRadius: 11, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }, confirmCancelText: { color: C.ink, fontSize: 11, fontWeight: '800' }, confirmActionButton: { flex: 1.3, minHeight: 44, borderRadius: 11, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 }, confirmActionDanger: { backgroundColor: C.red }, confirmActionText: { color: C.white, fontSize: 11, fontWeight: '900' }, disabledButton: { opacity: 0.65 },
+  modalShade: { flex: 1, backgroundColor: 'rgba(25,18,15,0.45)', justifyContent: 'flex-end' }, modalCard: { backgroundColor: C.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 17, maxHeight: '88%' }, modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, modalTitle: { color: C.ink, fontSize: 16, fontWeight: '900', textTransform: 'capitalize' }, formField: { marginBottom: 10 }, formLabel: { color: C.ink, fontSize: 10, fontWeight: '800', marginBottom: 5, textTransform: 'capitalize' }, choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }, choice: { borderWidth: 1, borderColor: C.line, backgroundColor: C.surface, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7 }, choiceActive: { borderColor: C.orange, backgroundColor: C.orange }, choiceText: { color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'capitalize' }, choiceTextActive: { color: C.white }, toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
+  imagePreview: { height: 150, marginBottom: 12, borderRadius: 11, overflow: 'hidden', backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, imagePreviewImage: { width: '100%', height: '100%' }, previewError: { color: C.red, fontSize: 11, lineHeight: 16, padding: 12, textAlign: 'center' },
 });
