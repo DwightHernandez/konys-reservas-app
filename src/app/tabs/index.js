@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -122,7 +122,7 @@ export default function InicioScreen() {
         refreshControl={<RefreshControl refreshing={loading || loadingDisponibilidad} onRefresh={() => { setRefreshToken((value) => value + 1); cargarMesas(); }} tintColor={C.orange} />}
       >
         <View style={styles.header}>
-          <View style={styles.brandMark}><Ionicons name="pizza" size={21} color={C.white} /></View>
+          <Image source={require('../../../assets/images/konys/KKonys.png')} style={styles.brandMark} resizeMode="cover" accessibilityLabel="Logo Konys Pizza" />
           <View style={styles.brandText}><Text style={styles.brand}>KONYS PIZZA</Text><Text style={styles.tagline}>La pizza más ikónica</Text></View>
           <Ionicons name="ellipsis-horizontal" size={22} color={C.ink} />
         </View>
@@ -131,10 +131,12 @@ export default function InicioScreen() {
           <Text style={styles.badge}>RESERVAS · BUCARAMANGA</Text>
           <Text style={styles.heroTitle}>Una mesa te espera.</Text>
           <Text style={styles.heroBody}>Reserva en pocos pasos y disfruta tu visita a Konys Pizza.</Text>
-          <View style={styles.pizzaPanel}>
-            <View style={styles.pizzaCircle}><Ionicons name="pizza" size={54} color={C.orange} /></View>
-            <Text style={styles.pizzaCaption}>RECIÉN HORNEADA</Text>
-          </View>
+          <Image
+            source={require('../../../assets/images/konys/konysLugar.png')}
+            style={styles.pizzaPanel}
+            resizeMode="cover"
+            accessibilityLabel="Konys Pizza"
+          />
         </View>
 
         <View style={styles.card}>
@@ -183,13 +185,12 @@ export default function InicioScreen() {
 const createStyles = (C) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 26 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
-  brandMark: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' },
+  brandMark: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden' },
   brandText: { flex: 1 }, brand: { color: C.ink, fontSize: 14, fontWeight: '900', letterSpacing: 0.6 }, tagline: { color: C.muted, fontSize: 10, marginTop: 2 },
   hero: { backgroundColor: C.hero, borderRadius: 21, padding: 18, marginBottom: 14 },
   badge: { alignSelf: 'flex-start', backgroundColor: C.badgeBg, color: C.badgeText, overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
   heroTitle: { color: C.white, fontSize: 23, fontWeight: '900', marginTop: 12 }, heroBody: { color: C.heroBody, fontSize: 12, lineHeight: 18, marginTop: 5 },
-  pizzaPanel: { backgroundColor: C.surface, borderRadius: 14, marginTop: 14, height: 92, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
-  pizzaCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, pizzaCaption: { fontSize: 9, color: C.orange, fontWeight: '900', letterSpacing: 0.7 },
+  pizzaPanel: { width: '100%', height: 110, borderRadius: 14, marginTop: 14, overflow: 'hidden' },
   card: { backgroundColor: C.surface, borderRadius: 17, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: C.line, elevation: 1 },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: '800', marginBottom: 10 }, cardHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, count: { color: C.muted, fontSize: 10, marginBottom: 10 },
   hoursRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 4 }, body: { color: C.muted, fontSize: 12 },
