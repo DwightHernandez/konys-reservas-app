@@ -55,6 +55,9 @@ create table if not exists public.platos (
   creado_en timestamptz not null default now()
 );
 
+-- Compatible con tablas platos que se hayan creado antes de añadir imágenes.
+alter table public.platos add column if not exists foto_url text;
+
 create index if not exists reservas_mesa_fecha_idx
   on public.reservas (mesa_id, fecha, hora_inicio);
 create index if not exists reservas_fecha_idx

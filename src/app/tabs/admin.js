@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
@@ -11,7 +11,7 @@ const CATEGORIAS = ['pizzas', 'entradas', 'postres', 'bebidas'];
 const ADMIN_PIN = process.env.EXPO_PUBLIC_ADMIN_PIN || '1234';
 
 const initForm = (type, record) => type === 'mesa' ? { nombre: record?.nombre || '', zona: record?.zona || 'salon', capacidad: String(record?.capacidad || 4), foto_url: record?.foto_url || '', activa: record?.activa ?? true }
-  : { nombre: record?.nombre || '', categoria: record?.categoria || 'pizzas', descripcion: record?.descripcion || '', precio: String(record?.precio || ''), disponible: record?.disponible ?? true };
+  : { nombre: record?.nombre || '', categoria: record?.categoria || 'pizzas', descripcion: record?.descripcion || '', precio: String(record?.precio || ''), foto_url: record?.foto_url || '', disponible: record?.disponible ?? true };
 
 export default function AdminScreen() {
   const [pin, setPin] = useState('');
@@ -58,7 +58,7 @@ export default function AdminScreen() {
     const isTable = modal?.type === 'mesa';
     const payload = isTable
       ? { nombre: form.nombre.trim(), zona: form.zona, capacidad: Number(form.capacidad), activa: Boolean(form.activa), foto_url: form.foto_url.trim() || null }
-      : { nombre: form.nombre.trim(), categoria: form.categoria, descripcion: form.descripcion.trim() || null, precio: Number(form.precio) || 0, disponible: Boolean(form.disponible) };
+      : { nombre: form.nombre.trim(), categoria: form.categoria, descripcion: form.descripcion.trim() || null, precio: Number(form.precio) || 0, foto_url: form.foto_url.trim() || null, disponible: Boolean(form.disponible) };
     const tableName = isTable ? 'mesas' : 'platos';
     const query = modal.record ? supabase.from(tableName).update(payload).eq('id', modal.record.id) : supabase.from(tableName).insert(payload);
     const { error: saveError } = await query;
@@ -166,6 +166,8 @@ function BookingCard({ reserva, mesa, onState }) {
 }
 
 function RecordModal({ visible, modal, form, setField, onClose, onSave, saving }) {
+  const [previewError, setPreviewError] = useState(false);
+  useEffect(() => { setPreviewError(false); }, [form.foto_url]);
   if (!modal) return null;
   const isTable = modal.type === 'mesa';
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -173,7 +175,7 @@ function RecordModal({ visible, modal, form, setField, onClose, onSave, saving }
       <ScrollView keyboardShouldPersistTaps="handled">
         <FormField label={isTable ? 'Nombre o número' : 'Nombre del plato'} value={form.nombre} onChangeText={(value) => setField('nombre', value)} placeholder={isTable ? 'Mesa 01' : 'Pizza Konys Especial'} />
         {isTable ? <><Text style={styles.formLabel}>Zona</Text><View style={styles.choiceRow}>{['salon', 'terraza'].map((value) => <Choice key={value} label={value === 'salon' ? 'Salón' : 'Terraza'} active={form.zona === value} onPress={() => setField('zona', value)} />)}</View><FormField label="Capacidad" value={form.capacidad} onChangeText={(value) => setField('capacidad', value)} keyboardType="number-pad" /><FormField label="Foto URL (opcional)" value={form.foto_url} onChangeText={(value) => setField('foto_url', value)} placeholder="https://…" /><Toggle label="Activa para reservas" value={form.activa} onValueChange={(value) => setField('activa', value)} /></>
-          : <><Text style={styles.formLabel}>Categoría</Text><View style={styles.choiceRow}>{CATEGORIAS.map((value) => <Choice key={value} label={value} active={form.categoria === value} onPress={() => setField('categoria', value)} />)}</View><FormField label="Descripción" value={form.descripcion} onChangeText={(value) => setField('descripcion', value)} multiline placeholder="Ingredientes y detalles" /><FormField label="Precio (COP)" value={form.precio} onChangeText={(value) => setField('precio', value)} keyboardType="number-pad" /><Toggle label="Visible en la carta" value={form.disponible} onValueChange={(value) => setField('disponible', value)} /></>}
+          : <><Text style={styles.formLabel}>Categoría</Text><View style={styles.choiceRow}>{CATEGORIAS.map((value) => <Choice key={value} label={value} active={form.categoria === value} onPress={() => setField('categoria', value)} />)}</View><FormField label="Descripción" value={form.descripcion} onChangeText={(value) => setField('descripcion', value)} multiline placeholder="Ingredientes y detalles" /><FormField label="Precio (COP)" value={form.precio} onChangeText={(value) => setField('precio', value)} keyboardType="number-pad" /><FormField label="Enlace de imagen (opcional)" value={form.foto_url} onChangeText={(value) => setField('foto_url', value)} placeholder="https://imagen-publica.jpg" autoCapitalize="none" autoCorrect={false} keyboardType="url" />{form.foto_url?.trim() ? <View style={styles.imagePreview}>{previewError ? <Text style={styles.previewError}>No se pudo cargar la imagen. Revisa que el enlace sea público y válido.</Text> : <Image source={{ uri: form.foto_url.trim() }} style={styles.imagePreviewImage} resizeMode="cover" onError={() => setPreviewError(true)} />}</View> : null}<Toggle label="Visible en la carta" value={form.disponible} onValueChange={(value) => setField('disponible', value)} /></>}
       </ScrollView>
       <Pressable style={styles.primaryButton} onPress={onSave} disabled={saving}><Text style={styles.primaryButtonText}>{saving ? 'Guardando…' : 'Guardar cambios'}</Text></Pressable>
     </View></View>
@@ -191,4 +193,5 @@ const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, 
   infoCard: { backgroundColor: '#FFF1DF', borderRadius: 13, padding: 13, marginBottom: 10 }, dayCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, dayTitle: { color: C.ink, fontSize: 12, fontWeight: '900', textTransform: 'capitalize', marginBottom: 5 }, hourRow: { borderTopWidth: 1, borderColor: '#F1EEEA', paddingTop: 8, marginTop: 5 }, hourTitle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, timeInputs: { flexDirection: 'row', alignItems: 'center', gap: 7 }, smallInput: { width: 62, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10 }, durationInput: { width: 52, borderWidth: 1, borderColor: C.line, borderRadius: 7, padding: 7, color: C.ink, textAlign: 'center', fontSize: 10, marginLeft: 'auto' },
   filters: { flexDirection: 'row', gap: 7, marginBottom: 10 }, filter: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 }, filterActive: { backgroundColor: C.orange, borderColor: C.orange }, filterText: { color: C.muted, fontSize: 10, fontWeight: '700' }, filterTextActive: { color: C.white }, bookingCard: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 13, padding: 12, marginBottom: 9 }, bookingHead: { flexDirection: 'row', alignItems: 'center', gap: 8 }, bookingIcon: { width: 29, height: 29, borderRadius: 9, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, state: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase' }, clientName: { color: C.ink, fontSize: 12, fontWeight: '800', marginTop: 9 }, bookingActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 8 }, link: { color: C.green, fontSize: 9, fontWeight: '800' },
   modalShade: { flex: 1, backgroundColor: 'rgba(25,18,15,0.45)', justifyContent: 'flex-end' }, modalCard: { backgroundColor: C.cream, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 17, maxHeight: '88%' }, modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }, modalTitle: { color: C.ink, fontSize: 16, fontWeight: '900', textTransform: 'capitalize' }, formField: { marginBottom: 10 }, formLabel: { color: C.ink, fontSize: 10, fontWeight: '800', marginBottom: 5, textTransform: 'capitalize' }, choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }, choice: { borderWidth: 1, borderColor: C.line, backgroundColor: C.white, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 7 }, choiceActive: { borderColor: C.orange, backgroundColor: C.orange }, choiceText: { color: C.muted, fontSize: 9, fontWeight: '700', textTransform: 'capitalize' }, choiceTextActive: { color: C.white }, toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
+  imagePreview: { height: 150, marginBottom: 12, borderRadius: 11, overflow: 'hidden', backgroundColor: '#FFF0DE', alignItems: 'center', justifyContent: 'center' }, imagePreviewImage: { width: '100%', height: '100%' }, previewError: { color: C.red, fontSize: 11, lineHeight: 16, padding: 12, textAlign: 'center' },
 });
