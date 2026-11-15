@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-
-const C = { ink: '#F5EEE8', hero: '#321C17', orange: '#F58A24', cream: '#171412', muted: '#B6AAA2', line: '#403733', white: '#FFFFFF', surface: '#251F1B', green: '#69B77D' };
+import { useAppTheme } from '../constants/theme';
 
 export default function ConfirmacionScreen() {
+  const C = useAppTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const { mesa, zona, fecha, hora, personas, nombre } = useLocalSearchParams();
   const formattedDate = fecha ? new Date(`${fecha}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
   return (
@@ -21,26 +22,26 @@ export default function ConfirmacionScreen() {
         <View style={styles.receipt}>
           <View style={styles.receiptHeader}><Ionicons name="receipt-outline" size={19} color={C.orange} /><Text style={styles.receiptTitle}>COMPROBANTE DE RESERVA</Text></View>
           <Text style={styles.confirmed}><Ionicons name="checkmark-circle" size={14} color={C.green} />  RESERVA CONFIRMADA</Text>
-          <Row label="Cliente" value={nombre} />
-          <Row label="Mesa" value={`${mesa || ''} · ${zona || ''}`} />
-          <Row label="Fecha" value={formattedDate} />
-          <Row label="Hora" value={hora} />
-          <Row label="Personas" value={personas ? `${personas} personas` : ''} />
+          <Row styles={styles} label="Cliente" value={nombre} />
+          <Row styles={styles} label="Mesa" value={`${mesa || ''} · ${zona || ''}`} />
+          <Row styles={styles} label="Fecha" value={formattedDate} />
+          <Row styles={styles} label="Hora" value={hora} />
+          <Row styles={styles} label="Personas" value={personas ? `${personas} personas` : ''} />
           <View style={styles.dash} />
           <Text style={styles.note}>Te recomendamos llegar unos minutos antes. ¡Gracias por elegirnos!</Text>
         </View>
-        <Pressable style={styles.button} onPress={() => router.replace('/tabs')}><Text style={styles.buttonText}>Volver al inicio</Text><Ionicons name="arrow-forward" size={17} color={C.white} /></Pressable>
+        <Pressable style={styles.button} onPress={() => router.replace('/tabs')}><Text style={styles.buttonText}>Volver al inicio</Text><Ionicons name="arrow-forward" size={17} color={C.orangeText} /></Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Row({ label, value }) {
+function Row({ label, value, styles }) {
   return <View style={styles.row}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value || '—'}</Text></View>;
 }
 
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, content: { flexGrow: 1, padding: 16, justifyContent: 'center' },
-  hero: { backgroundColor: C.hero, padding: 19, borderRadius: 20, alignItems: 'center' }, badge: { color: '#FFD18D', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }, check: { width: 58, height: 58, borderRadius: 29, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center', marginTop: 20 }, title: { color: C.white, fontSize: 20, fontWeight: '900', textAlign: 'center', marginTop: 12 }, subtitle: { color: '#E6D9D5', fontSize: 12, marginTop: 5 },
+const createStyles = (C) => StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, content: { flexGrow: 1, padding: 16, justifyContent: 'center' },
+  hero: { backgroundColor: C.hero, padding: 19, borderRadius: 20, alignItems: 'center' }, badge: { color: C.badgeText, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }, check: { width: 58, height: 58, borderRadius: 29, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center', marginTop: 20 }, title: { color: C.white, fontSize: 20, fontWeight: '900', textAlign: 'center', marginTop: 12 }, subtitle: { color: C.heroBody, fontSize: 12, marginTop: 5 },
   receipt: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 17, padding: 16, marginTop: 14 }, receiptHeader: { flexDirection: 'row', gap: 8, alignItems: 'center' }, receiptTitle: { color: C.ink, fontSize: 11, fontWeight: '900', letterSpacing: 0.4 }, confirmed: { color: C.green, fontSize: 9, fontWeight: '900', marginTop: 17, marginBottom: 7 }, row: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }, label: { color: C.muted, fontSize: 11, width: 78 }, value: { color: C.ink, fontSize: 11, fontWeight: '700', flex: 1, textTransform: 'capitalize' }, dash: { borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.line, marginTop: 12 }, note: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 11 },
-  button: { backgroundColor: C.orange, borderRadius: 12, marginTop: 16, paddingVertical: 15, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }, buttonText: { color: C.white, fontSize: 13, fontWeight: '900' },
+  button: { backgroundColor: C.orange, borderRadius: 12, marginTop: 16, paddingVertical: 15, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }, buttonText: { color: C.orangeText, fontSize: 13, fontWeight: '900' },
 });

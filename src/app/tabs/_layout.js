@@ -1,18 +1,17 @@
 // app/(tabs)/_layout.js
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
-// Paleta de colores sugerida
-const Colors = { accent: '#F28C28', background: '#F7F5F2' };
+import { useAppTheme } from '../../constants/theme';
 
 export default function TabLayout() {
+  const colors = useAppTheme();
   return (
     <Tabs screenOptions={{
       headerShown: false,
-      tabBarActiveTintColor: Colors.accent,
-      tabBarInactiveTintColor: '#87909A',
+      tabBarActiveTintColor: colors.orange,
+      tabBarInactiveTintColor: colors.muted,
       tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
-      tabBarStyle: { height: 62, paddingTop: 7, paddingBottom: 5, backgroundColor: '#FFFFFF', borderTopColor: '#ECE8E3' },
+      tabBarStyle: { height: 62, paddingTop: 7, paddingBottom: 5, backgroundColor: colors.surface, borderTopColor: colors.line },
     }}>
       <Tabs.Screen
         name="index"

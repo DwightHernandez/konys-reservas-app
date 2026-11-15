@@ -1,34 +1,93 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { supabase } from '../../services/supabase';
+import { JORNADAS_DEFAULT, fechaLocalISO, generarSlots, horaAMinutos } from '../../utils/reservas';
+import { useAppTheme } from '../../constants/theme';
 
-const C = { ink: '#351510', orange: '#F58A24', cream: '#F7F5F2', muted: '#727982', line: '#E9E4DE', white: '#FFFFFF', pale: '#FFF3E4' };
+const normalizar = (valor) => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-CO');
+const nombreDia = (fecha) => normalizar(new Date(`${fecha}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long' }));
+const horariosDelDia = (todos, fecha) => !todos.length ? JORNADAS_DEFAULT : todos.filter((item) => normalizar(item.dia_semana) === nombreDia(fecha) && item.activo !== false);
+const opcionesFecha = () => Array.from({ length: 14 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() + index); return fechaLocalISO(date); });
+const tieneTurnoFuturo = (horarios, fecha) => {
+  if (fecha !== fechaLocalISO(new Date())) return generarSlots(horarios).length > 0;
+  const now = new Date();
+  const minutoActual = now.getHours() * 60 + now.getMinutes();
+  return horarios.some((horario) => horaAMinutos(horario.hora_inicio) <= minutoActual && minutoActual < horaAMinutos(horario.hora_fin))
+    || generarSlots(horarios).some((slot) => horaAMinutos(slot.hora) > minutoActual);
+};
 
 export default function InicioScreen() {
+  const C = useAppTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [mesas, setMesas] = useState([]);
   const [mesaSeleccionada, setMesaSeleccionada] = useState(null);
+  const [horarios, setHorarios] = useState([]);
+  const [fecha, setFecha] = useState(() => fechaLocalISO(new Date()));
+  const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingDisponibilidad, setLoadingDisponibilidad] = useState(true);
   const [error, setError] = useState('');
+  const [errorDisponibilidad, setErrorDisponibilidad] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
+  const fechas = opcionesFecha();
 
   const cargarMesas = useCallback(async () => {
     setLoading(true);
     setError('');
-    const { data, error: queryError } = await supabase
-      .from('mesas')
-      .select('*')
-      .order('nombre');
-    if (queryError) setError('No pudimos cargar las mesas. Desliza hacia abajo para intentar de nuevo.');
-    else setMesas(data || []);
+    const [mesaResult, horariosResult] = await Promise.all([
+      supabase.from('mesas').select('*').order('nombre'),
+      supabase.from('horarios').select('*'),
+    ]);
+    if (mesaResult.error) setError('No pudimos cargar las mesas. Desliza hacia abajo para intentar de nuevo.');
+    else setMesas(mesaResult.data || []);
+    const horariosCargados = horariosResult.error ? [] : horariosResult.data || [];
+    setHorarios(horariosCargados);
+    const hoy = fechaLocalISO(new Date());
+    const date = new Date(); date.setDate(date.getDate() + 1);
+    setFecha(tieneTurnoFuturo(horariosDelDia(horariosCargados, hoy), hoy) ? hoy : fechaLocalISO(date));
+    setMesaSeleccionada(null);
     setLoading(false);
   }, []);
 
   useEffect(() => { cargarMesas(); }, [cargarMesas]);
 
+  useEffect(() => {
+    let active = true;
+    const cargarReservasDelDia = async () => {
+      setLoadingDisponibilidad(true);
+      setErrorDisponibilidad('');
+      const { data, error: queryError } = await supabase.from('reservas')
+        .select('mesa_id,hora_inicio,hora_fin,estado').eq('fecha', fecha).neq('estado', 'cancelada');
+      if (!active) return;
+      if (queryError) { setReservas([]); setErrorDisponibilidad('No pudimos verificar la disponibilidad. Desliza para intentar de nuevo.'); }
+      else setReservas(data || []);
+      setMesaSeleccionada(null);
+      setLoadingDisponibilidad(false);
+    };
+    cargarReservasDelDia();
+    return () => { active = false; };
+  }, [fecha, refreshToken]);
+
+  const disponibilidad = (mesa) => {
+    if (!mesa.activa || loadingDisponibilidad || errorDisponibilidad) return false;
+    const slots = generarSlots(horariosDelDia(horarios, fecha), reservas.filter((item) => String(item.mesa_id) === String(mesa.id)));
+    const futuros = fecha === fechaLocalISO(new Date())
+      ? slots.filter((slot) => horaAMinutos(slot.hora) > new Date().getHours() * 60 + new Date().getMinutes())
+      : slots;
+    return futuros.some((slot) => !slot.ocupado);
+  };
+
+  const fechaOpciones = fechas.map((item, index) => ({
+    fecha: item,
+    etiqueta: index === 0 ? 'Hoy' : index === 1 ? 'Mañana' : new Date(`${item}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', ''),
+    dia: new Date(`${item}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace('.', ''),
+  }));
+
   const reservar = () => {
-    if (mesaSeleccionada) router.push(`/reservar/${mesaSeleccionada}`);
+    if (mesaSeleccionada) router.push({ pathname: `/reservar/${mesaSeleccionada}`, params: { fecha } });
   };
 
   return (
@@ -36,7 +95,7 @@ export default function InicioScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={cargarMesas} tintColor={C.orange} />}
+        refreshControl={<RefreshControl refreshing={loading || loadingDisponibilidad} onRefresh={() => { setRefreshToken((value) => value + 1); cargarMesas(); }} tintColor={C.orange} />}
       >
         <View style={styles.header}>
           <View style={styles.brandMark}><Ionicons name="pizza" size={21} color={C.white} /></View>
@@ -61,29 +120,35 @@ export default function InicioScreen() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHeading}><Text style={styles.sectionTitle}>Mesas disponibles</Text><Text style={styles.count}>{mesas.filter((mesa) => mesa.activa).length} activas</Text></View>
+          <View style={styles.cardHeading}><Text style={styles.sectionTitle}>Mesas por día</Text><Text style={styles.count}>{mesas.filter(disponibilidad).length} disponibles</Text></View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateList}>
+            {fechaOpciones.map((item) => <Pressable key={item.fecha} onPress={() => { setFecha(item.fecha); setMesaSeleccionada(null); }} style={[styles.dateChip, fecha === item.fecha && styles.dateChipSelected]}><Text style={[styles.dateLabel, fecha === item.fecha && styles.dateTextSelected]}>{item.etiqueta}</Text><Text style={[styles.dateNumber, fecha === item.fecha && styles.dateTextSelected]}>{item.dia}</Text></Pressable>)}
+          </ScrollView>
+          {errorDisponibilidad ? <Pressable onPress={() => setRefreshToken((value) => value + 1)}><Text style={styles.error}>{errorDisponibilidad}</Text></Pressable> : null}
+          {loadingDisponibilidad ? <ActivityIndicator color={C.orange} style={styles.loader} /> : null}
           {loading && mesas.length === 0 ? <ActivityIndicator color={C.orange} style={styles.loader} /> : null}
           {error ? <Pressable onPress={cargarMesas}><Text style={styles.error}>{error}</Text></Pressable> : null}
           {!loading && !error && mesas.length === 0 ? <Text style={styles.muted}>Aún no hay mesas registradas.</Text> : null}
           {mesas.map((mesa) => {
+            const disponible = disponibilidad(mesa);
             const selected = mesaSeleccionada === mesa.id;
             return (
               <Pressable
                 key={mesa.id}
-                onPress={() => mesa.activa && setMesaSeleccionada(selected ? null : mesa.id)}
-                disabled={!mesa.activa}
-                style={[styles.tableRow, selected && styles.tableRowSelected, !mesa.activa && styles.inactive]}
+                onPress={() => disponible && setMesaSeleccionada(selected ? null : mesa.id)}
+                disabled={!disponible}
+                style={[styles.tableRow, selected && styles.tableRowSelected, !disponible && styles.inactive]}
               >
                 <View style={[styles.tableIcon, selected && styles.tableIconSelected]}><Ionicons name="restaurant-outline" size={17} color={selected ? C.white : C.ink} /></View>
                 <View style={styles.tableInfo}><Text style={styles.tableName}>{mesa.nombre}</Text><Text style={styles.muted}>{mesa.zona} · {mesa.capacidad} personas</Text></View>
-                <Text style={[styles.status, !mesa.activa && styles.muted]}>{mesa.activa ? 'Disponible' : 'Inactiva'}</Text>
+                <Text style={[styles.status, !disponible && styles.unavailable]}>{disponible ? 'Disponible' : 'No disponible'}</Text>
               </Pressable>
             );
           })}
         </View>
 
         <Pressable style={[styles.button, !mesaSeleccionada && styles.buttonDisabled]} onPress={reservar} disabled={!mesaSeleccionada}>
-          <Text style={styles.buttonText}>Reservar mesa</Text><Ionicons name="arrow-forward" size={18} color={C.white} />
+          <Text style={styles.buttonText}>Reservar mesa</Text><Ionicons name="arrow-forward" size={18} color={C.orangeText} />
         </Pressable>
         <View style={styles.bottomNote}><Ionicons name="heart" size={14} color={C.orange} /><Text style={styles.muted}>Te esperamos para compartir algo delicioso.</Text></View>
       </ScrollView>
@@ -91,20 +156,21 @@ export default function InicioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 26 },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
   brandMark: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.orange, alignItems: 'center', justifyContent: 'center' },
   brandText: { flex: 1 }, brand: { color: C.ink, fontSize: 14, fontWeight: '900', letterSpacing: 0.6 }, tagline: { color: C.muted, fontSize: 10, marginTop: 2 },
-  hero: { backgroundColor: C.ink, borderRadius: 21, padding: 18, marginBottom: 14 },
-  badge: { alignSelf: 'flex-start', backgroundColor: '#183747', color: '#FFD18D', overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
-  heroTitle: { color: C.white, fontSize: 23, fontWeight: '900', marginTop: 12 }, heroBody: { color: '#E6D9D5', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  pizzaPanel: { backgroundColor: C.white, borderRadius: 14, marginTop: 14, height: 92, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
-  pizzaCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFE4B8', alignItems: 'center', justifyContent: 'center' }, pizzaCaption: { fontSize: 9, color: C.orange, fontWeight: '900', letterSpacing: 0.7 },
-  card: { backgroundColor: C.white, borderRadius: 17, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: C.line, elevation: 1 },
+  hero: { backgroundColor: C.hero, borderRadius: 21, padding: 18, marginBottom: 14 },
+  badge: { alignSelf: 'flex-start', backgroundColor: C.badgeBg, color: C.badgeText, overflow: 'hidden', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10, fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  heroTitle: { color: C.white, fontSize: 23, fontWeight: '900', marginTop: 12 }, heroBody: { color: C.heroBody, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  pizzaPanel: { backgroundColor: C.surface, borderRadius: 14, marginTop: 14, height: 92, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 12 },
+  pizzaCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, pizzaCaption: { fontSize: 9, color: C.orange, fontWeight: '900', letterSpacing: 0.7 },
+  card: { backgroundColor: C.surface, borderRadius: 17, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: C.line, elevation: 1 },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: '800', marginBottom: 10 }, cardHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, count: { color: C.muted, fontSize: 10, marginBottom: 10 },
   hoursRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 4 }, body: { color: C.muted, fontSize: 12 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: '#F1EEEA', gap: 9 }, tableRowSelected: { backgroundColor: C.pale, borderRadius: 10, paddingHorizontal: 7 }, tableIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: '#F2EEE9', alignItems: 'center', justifyContent: 'center' }, tableIconSelected: { backgroundColor: C.ink }, tableInfo: { flex: 1 }, tableName: { color: C.ink, fontSize: 12, fontWeight: '800', textTransform: 'capitalize' }, status: { color: '#45915D', fontSize: 9, fontWeight: '700' }, inactive: { opacity: 0.45 },
-  muted: { color: C.muted, fontSize: 11, lineHeight: 16 }, error: { color: '#B43D34', fontSize: 12, lineHeight: 18 }, loader: { padding: 14 },
-  button: { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 15, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, buttonDisabled: { opacity: 0.45 }, buttonText: { color: C.white, fontWeight: '900', fontSize: 13 }, bottomNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 18 },
+  dateList: { gap: 7, paddingBottom: 10 }, dateChip: { minWidth: 61, paddingHorizontal: 9, paddingVertical: 8, borderRadius: 11, backgroundColor: C.cream, borderWidth: 1, borderColor: C.line, alignItems: 'center' }, dateChipSelected: { backgroundColor: C.orange, borderColor: C.orange }, dateLabel: { color: C.muted, fontSize: 9, fontWeight: '800', textTransform: 'capitalize' }, dateNumber: { color: C.ink, fontSize: 10, fontWeight: '700', marginTop: 3, textTransform: 'capitalize' }, dateTextSelected: { color: C.orangeText },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: C.line, gap: 9 }, tableRowSelected: { backgroundColor: C.pale, borderRadius: 10, paddingHorizontal: 7 }, tableIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, tableIconSelected: { backgroundColor: C.hero }, tableInfo: { flex: 1 }, tableName: { color: C.ink, fontSize: 12, fontWeight: '800', textTransform: 'capitalize' }, status: { color: C.green, fontSize: 9, fontWeight: '700' }, unavailable: { color: C.muted, fontSize: 9, fontWeight: '700' }, inactive: { opacity: 0.45 },
+  muted: { color: C.muted, fontSize: 11, lineHeight: 16 }, error: { color: C.red, fontSize: 12, lineHeight: 18 }, loader: { padding: 14 },
+  button: { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 15, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, buttonDisabled: { opacity: 0.45 }, buttonText: { color: C.orangeText, fontWeight: '900', fontSize: 13 }, bottomNote: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 18 },
 });

@@ -4,13 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import { dineroCOP } from '../../utils/reservas';
+import { useAppTheme } from '../../constants/theme';
 
-const C = { ink: '#351510', orange: '#F58A24', cream: '#F7F5F2', muted: '#727982', line: '#E9E4DE', white: '#FFFFFF', pale: '#FFF3E4' };
 const CATEGORIAS = [
   { id: 'todas', label: 'Todo' }, { id: 'pizzas', label: 'Pizzas' }, { id: 'entradas', label: 'Entradas' }, { id: 'postres', label: 'Postres' }, { id: 'bebidas', label: 'Bebidas' },
 ];
 
 export default function CartaScreen() {
+  const C = useAppTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [platos, setPlatos] = useState([]);
   const [categoria, setCategoria] = useState('todas');
   const [loading, setLoading] = useState(true);
@@ -36,13 +38,13 @@ export default function CartaScreen() {
         {loading && platos.length === 0 ? <ActivityIndicator color={C.orange} style={{ marginTop: 32 }} /> : null}
         {error ? <Pressable style={styles.message} onPress={cargar}><Ionicons name="refresh" size={17} color={C.orange} /><Text style={styles.muted}>{error}</Text></Pressable> : null}
         {!loading && !error && visibles.length === 0 ? <View style={styles.empty}><Ionicons name="pizza-outline" size={32} color={C.orange} /><Text style={styles.emptyTitle}>Pronto tendremos novedades</Text><Text style={styles.muted}>Aún no hay platos visibles en esta categoría.</Text></View> : null}
-        {visibles.map((plato) => <MenuCard key={plato.id} plato={plato} />)}
+        {visibles.map((plato) => <MenuCard key={plato.id} plato={plato} C={C} styles={styles} />)}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MenuCard({ plato }) {
+function MenuCard({ plato, C, styles }) {
   return <View style={styles.card}>
     {plato.foto_url ? <Image source={{ uri: plato.foto_url }} style={styles.photo} resizeMode="cover" /> : <View style={styles.photoPlaceholder}><Ionicons name="pizza" size={32} color={C.orange} /></View>}
     <View style={styles.cardBody}><View style={styles.cardHeading}><Text style={styles.dishName}>{plato.nombre}</Text>{plato.precio != null ? <Text style={styles.price}>{dineroCOP(plato.precio)}</Text> : null}</View>
@@ -52,9 +54,9 @@ function MenuCard({ plato }) {
   </View>;
 }
 
-const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 26 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, eyebrow: { color: C.orange, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, title: { color: C.ink, fontSize: 23, fontWeight: '900', marginTop: 4 }, icon: { width: 40, height: 40, borderRadius: 13, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
-  hero: { backgroundColor: C.ink, borderRadius: 20, padding: 18 }, badge: { alignSelf: 'flex-start', color: '#FFD18D', fontSize: 9, fontWeight: '900' }, heroTitle: { color: C.white, fontSize: 19, fontWeight: '900', marginTop: 12 }, heroBody: { color: '#E6D9D5', fontSize: 11, lineHeight: 16, marginTop: 5 },
-  chips: { gap: 7, paddingVertical: 15 }, chip: { borderRadius: 15, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 }, chipActive: { backgroundColor: C.orange, borderColor: C.orange }, chipText: { color: C.muted, fontSize: 10, fontWeight: '700' }, chipTextActive: { color: C.white },
-  card: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 15, marginBottom: 11, overflow: 'hidden', elevation: 1 }, photo: { width: '100%', height: 142, backgroundColor: '#F1E7DA' }, photoPlaceholder: { height: 90, backgroundColor: '#FFF0DE', alignItems: 'center', justifyContent: 'center' }, cardBody: { padding: 13 }, cardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }, dishName: { flex: 1, color: C.ink, fontSize: 13, fontWeight: '900' }, price: { color: C.orange, fontSize: 11, fontWeight: '900' }, category: { color: C.orange, fontSize: 8, fontWeight: '900', marginTop: 5 }, description: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
-  empty: { backgroundColor: C.white, borderRadius: 15, padding: 25, alignItems: 'center', gap: 7 }, emptyTitle: { color: C.ink, fontSize: 13, fontWeight: '800', marginTop: 4 }, muted: { flex: 1, color: C.muted, fontSize: 11, lineHeight: 16 }, message: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 14 },
+const createStyles = (C) => StyleSheet.create({ safe: { flex: 1, backgroundColor: C.cream }, content: { padding: 16, paddingBottom: 26 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }, eyebrow: { color: C.orange, fontSize: 9, fontWeight: '900', letterSpacing: 1 }, title: { color: C.ink, fontSize: 23, fontWeight: '900', marginTop: 4 }, icon: { width: 40, height: 40, borderRadius: 13, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' },
+  hero: { backgroundColor: C.hero, borderRadius: 20, padding: 18 }, badge: { alignSelf: 'flex-start', color: C.badgeText, fontSize: 9, fontWeight: '900' }, heroTitle: { color: C.white, fontSize: 19, fontWeight: '900', marginTop: 12 }, heroBody: { color: C.heroBody, fontSize: 11, lineHeight: 16, marginTop: 5 },
+  chips: { gap: 7, paddingVertical: 15 }, chip: { borderRadius: 15, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 }, chipActive: { backgroundColor: C.orange, borderColor: C.orange }, chipText: { color: C.muted, fontSize: 10, fontWeight: '700' }, chipTextActive: { color: C.orangeText },
+  card: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 15, marginBottom: 11, overflow: 'hidden', elevation: 1 }, photo: { width: '100%', height: 142, backgroundColor: C.photoBg }, photoPlaceholder: { height: 90, backgroundColor: C.pale, alignItems: 'center', justifyContent: 'center' }, cardBody: { padding: 13 }, cardHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }, dishName: { flex: 1, color: C.ink, fontSize: 13, fontWeight: '900' }, price: { color: C.orange, fontSize: 11, fontWeight: '900' }, category: { color: C.orange, fontSize: 8, fontWeight: '900', marginTop: 5 }, description: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 5 },
+  empty: { backgroundColor: C.surface, borderRadius: 15, padding: 25, alignItems: 'center', gap: 7 }, emptyTitle: { color: C.ink, fontSize: 13, fontWeight: '800', marginTop: 4 }, muted: { flex: 1, color: C.muted, fontSize: 11, lineHeight: 16 }, message: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 14 },
 });

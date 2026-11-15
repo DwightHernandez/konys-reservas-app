@@ -1,13 +1,15 @@
+import { LIGHT_COLORS } from './theme';
+
 const colors = {
-  primary: '#F28C28',
-  primaryDark: '#D96B12',
-  secondary: '#351510',
-  background: '#F7F5F2',
-  surface: '#FFFFFF',
-  text: '#351510',
-  textSecondary: '#727982',
-  border: '#E9E4DE',
-  success: '#3D995B',
+  primary: LIGHT_COLORS.orange,
+  primaryDark: '#D87517',
+  secondary: LIGHT_COLORS.hero,
+  background: LIGHT_COLORS.cream,
+  surface: LIGHT_COLORS.surface,
+  text: LIGHT_COLORS.ink,
+  textSecondary: LIGHT_COLORS.muted,
+  border: LIGHT_COLORS.line,
+  success: LIGHT_COLORS.green,
 };
 
 export default colors;

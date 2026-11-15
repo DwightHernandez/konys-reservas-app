@@ -1,16 +1,18 @@
 // components/MesaCard.js
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import colors from '../constants/colors';
+import { useAppTheme } from '../constants/theme';
 
 export default function MesaCard({ mesa, onReservar }) {
+  const colors = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.card, !mesa.activa && styles.inactive]}>
       <View style={styles.infoContainer}>
         <Text style={styles.title}>{mesa.nombre}</Text>
-        <Text style={styles.subtitle}><Ionicons name="location-outline" size={14} color={colors.textSecondary} /> Zona: {mesa.zona}</Text>
-        <Text style={styles.subtitle}><Ionicons name="people-outline" size={14} color={colors.textSecondary} /> Capacidad: {mesa.capacidad} personas</Text>
+        <Text style={styles.subtitle}><Ionicons name="location-outline" size={14} color={colors.muted} /> Zona: {mesa.zona}</Text>
+        <Text style={styles.subtitle}><Ionicons name="people-outline" size={14} color={colors.muted} /> Capacidad: {mesa.capacidad} personas</Text>
       </View>
       
       <TouchableOpacity 
@@ -26,7 +28,7 @@ export default function MesaCard({ mesa, onReservar }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 14,
@@ -50,25 +52,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.secondary,
+    color: colors.ink,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.muted,
     marginTop: 2,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.orange,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 6,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: colors.disabled,
   },
   buttonText: {
-    color: colors.surface,
+    color: colors.orangeText,
     fontWeight: 'bold',
   },
   inactive: { opacity: 0.55 },
