@@ -94,6 +94,17 @@ export default function ReservarScreen() {
     setSaving(true);
     setSlotError('');
 
+    const { data: mesaActual, error: mesaError } = await supabase.from('mesas')
+      .select('activa').eq('id', mesaId).maybeSingle();
+    if (mesaError || !mesaActual?.activa) {
+      if (!mesaError) setMesa((actual) => actual ? { ...actual, activa: false } : actual);
+      setSlotError(mesaError
+        ? 'No pudimos confirmar que la mesa siga activa. Intenta de nuevo.'
+        : 'Esta mesa acaba de deshabilitarse. Vuelve al inicio y elige otra.');
+      setSaving(false);
+      return;
+    }
+
     const slot = slots.find((item) => item.hora === hora);
     const horario = horarios.find((item) => item.jornada === slot?.jornada);
     const duracion = Math.max(15, Number(horario?.duracion_slot) || 60);
@@ -144,7 +155,7 @@ export default function ReservarScreen() {
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={C.orange} /></View>;
-  if (!mesa) return <SafeAreaView style={styles.safe}><Pressable style={styles.back} onPress={() => router.back()}><Ionicons name="arrow-back" size={20} color={C.ink} /><Text style={styles.backText}>Volver</Text></Pressable><Text style={styles.error}>{error || 'Mesa no disponible.'}</Text></SafeAreaView>;
+  if (!mesa || !mesa.activa) return <SafeAreaView style={styles.safe}><Pressable style={styles.back} onPress={() => router.back()}><Ionicons name="arrow-back" size={20} color={C.ink} /><Text style={styles.backText}>Volver</Text></Pressable><Text style={styles.error}>{!mesa ? error || 'Mesa no disponible.' : 'Esta mesa ya no está habilitada para reservas.'}</Text></SafeAreaView>;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -165,7 +176,7 @@ export default function ReservarScreen() {
             const itemWeekday = DIAS_SEMANA[new Date(itemYear, itemMonth - 1, itemDay).getDay()];
             const diaCerrado = horariosConfigurados.length > 0 && !horariosConfigurados.some((schedule) => String(schedule.dia_semana || '').toLocaleLowerCase('es-CO') === itemWeekday && schedule.activo !== false);
             return <Pressable key={item.fecha} disabled={diaCerrado} onPress={() => { setFecha(item.fecha); setHora(''); setSlotError(''); }} style={[styles.dateChip, selected && styles.dateChipActive, diaCerrado && styles.dateChipDisabled]}>
-              <Text style={[styles.dateDay, selected && styles.selectedText]}>{item.dia}</Text><Text style={[styles.dateNumber, selected && styles.selectedText]}>{item.numero}</Text>
+              <Text style={[styles.dateDay, selected && styles.selectedDateText]}>{item.dia}</Text><Text style={[styles.dateNumber, selected && styles.selectedDateText]}>{item.numero}</Text>
             </Pressable>;
           })}
         </ScrollView>
@@ -202,7 +213,7 @@ export default function ReservarScreen() {
 
 function Slot({ slot, selected, onPress, C, styles }) {
   const disabled = slot.ocupado || slot.pasado;
-  return <Pressable disabled={disabled} onPress={onPress} style={[styles.slot, disabled && styles.slotOccupied, selected && styles.slotSelected]}><Text style={[styles.slotText, disabled && styles.slotTextOccupied, selected && styles.selectedText]}>{slot.hora}</Text>{disabled ? <Text style={styles.taken}>{slot.ocupado ? 'Ocupado' : 'Pasó'}</Text> : null}</Pressable>;
+  return <Pressable disabled={disabled} onPress={onPress} style={[styles.slot, disabled && styles.slotOccupied, selected && styles.slotSelected]}><Text style={[styles.slotText, disabled && styles.slotTextOccupied, selected && styles.selectedSlotText]}>{slot.hora}</Text>{disabled ? <Text style={styles.taken}>{slot.ocupado ? 'Ocupado' : 'Pasó'}</Text> : null}</Pressable>;
 }
 
 function Field({ label, C, styles, ...props }) {
@@ -214,7 +225,7 @@ const createStyles = (C) => StyleSheet.create({
   back: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 }, backText: { fontSize: 13, color: C.ink, fontWeight: '700' },
   hero: { backgroundColor: C.hero, borderRadius: 19, padding: 17, marginBottom: 12 }, badge: { color: C.badgeText, fontSize: 9, fontWeight: '900', letterSpacing: 0.5 }, heroTitle: { color: C.white, fontSize: 21, fontWeight: '900', marginTop: 9 }, heroBody: { color: C.heroBody, fontSize: 12, marginTop: 4 },
   summary: { backgroundColor: C.surface, borderRadius: 13, padding: 13, marginBottom: 18 }, tablePhoto: { width: '100%', height: 150, borderRadius: 10, marginBottom: 11, backgroundColor: C.photoBg }, summaryLabel: { color: C.muted, fontSize: 9, fontWeight: '900', letterSpacing: 0.7 }, summaryTitle: { color: C.ink, fontSize: 13, fontWeight: '900', marginTop: 5, textTransform: 'capitalize' }, muted: { color: C.muted, fontSize: 11, marginTop: 3, lineHeight: 16 },
-  sectionTitle: { color: C.ink, fontSize: 12, fontWeight: '900', letterSpacing: 0.4, marginTop: 14, marginBottom: 9, textTransform: 'uppercase' }, dateList: { gap: 8, paddingBottom: 4 }, dateChip: { width: 48, height: 58, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }, dateChipActive: { backgroundColor: C.orange, borderColor: C.orange }, dateChipDisabled: { opacity: 0.35 }, dateDay: { fontSize: 9, color: C.muted, fontWeight: '800' }, dateNumber: { fontSize: 17, color: C.ink, fontWeight: '900', marginTop: 2 }, selectedText: { color: C.orangeText }, selectedDate: { color: C.muted, fontSize: 11, marginTop: 7, textTransform: 'capitalize' },
+  sectionTitle: { color: C.ink, fontSize: 12, fontWeight: '900', letterSpacing: 0.4, marginTop: 14, marginBottom: 9, textTransform: 'uppercase' }, dateList: { gap: 8, paddingBottom: 4 }, dateChip: { width: 48, height: 58, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }, dateChipActive: { backgroundColor: C.orange, borderColor: C.orange }, dateChipDisabled: { opacity: 0.35 }, dateDay: { fontSize: 9, color: C.muted, fontWeight: '800' }, dateNumber: { fontSize: 17, color: C.ink, fontWeight: '900', marginTop: 2 }, selectedDateText: { color: C.orangeText }, selectedSlotText: { color: C.white }, selectedDate: { color: C.muted, fontSize: 11, marginTop: 7, textTransform: 'capitalize' },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, slot: { minWidth: 64, borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface, paddingVertical: 9, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' }, slotSelected: { backgroundColor: C.hero, borderColor: C.hero }, slotOccupied: { backgroundColor: C.gray, borderColor: C.gray }, slotText: { color: C.ink, fontSize: 11, fontWeight: '800' }, slotTextOccupied: { color: C.muted, textDecorationLine: 'line-through' }, taken: { color: C.muted, fontSize: 8, marginTop: 1 },
   form: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 14, marginTop: 17 }, field: { marginTop: 10 }, label: { color: C.ink, fontSize: 10, fontWeight: '800', marginBottom: 5 }, input: { backgroundColor: C.cream, borderWidth: 1, borderColor: C.line, borderRadius: 9, paddingHorizontal: 11, paddingVertical: 10, color: C.ink, fontSize: 12 }, helper: { color: C.muted, fontSize: 9, marginTop: 6 }, reservationSummary: { backgroundColor: C.pale, borderRadius: 13, padding: 13, marginTop: 13 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: C.cream, padding: 14, paddingBottom: 17, borderTopWidth: 1, borderColor: C.line }, button: { backgroundColor: C.orange, borderRadius: 12, padding: 15, alignItems: 'center', justifyContent: 'center', minHeight: 48 }, buttonText: { color: C.orangeText, fontSize: 13, fontWeight: '900' }, disabled: { opacity: 0.7 }, error: { color: C.red, fontSize: 11, lineHeight: 16, marginVertical: 6 }, errorFooter: { color: C.red, fontSize: 10, marginBottom: 5 },

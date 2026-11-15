@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../../services/supabase';
 import { JORNADAS_DEFAULT, fechaLocalISO, generarSlots, horaAMinutos } from '../../utils/reservas';
 import { useAppTheme } from '../../constants/theme';
@@ -32,10 +32,11 @@ export default function InicioScreen() {
   const [error, setError] = useState('');
   const [errorDisponibilidad, setErrorDisponibilidad] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
+  const fechaInicializada = useRef(false);
   const fechas = opcionesFecha();
 
-  const cargarMesas = useCallback(async () => {
-    setLoading(true);
+  const cargarMesas = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
     setError('');
     const [mesaResult, horariosResult] = await Promise.all([
       supabase.from('mesas').select('*').order('nombre'),
@@ -45,14 +46,31 @@ export default function InicioScreen() {
     else setMesas(mesaResult.data || []);
     const horariosCargados = horariosResult.error ? [] : horariosResult.data || [];
     setHorarios(horariosCargados);
-    const hoy = fechaLocalISO(new Date());
-    const date = new Date(); date.setDate(date.getDate() + 1);
-    setFecha(tieneTurnoFuturo(horariosDelDia(horariosCargados, hoy), hoy) ? hoy : fechaLocalISO(date));
-    setMesaSeleccionada(null);
+    if (!fechaInicializada.current) {
+      const hoy = fechaLocalISO(new Date());
+      const date = new Date(); date.setDate(date.getDate() + 1);
+      setFecha(tieneTurnoFuturo(horariosDelDia(horariosCargados, hoy), hoy) ? hoy : fechaLocalISO(date));
+      fechaInicializada.current = true;
+    }
     setLoading(false);
   }, []);
 
-  useEffect(() => { cargarMesas(); }, [cargarMesas]);
+  useFocusEffect(useCallback(() => {
+    cargarMesas();
+    setRefreshToken((value) => value + 1);
+    const channel = supabase.channel('cliente-disponibilidad')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, () => cargarMesas({ quiet: true }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, () => setRefreshToken((value) => value + 1))
+      .subscribe();
+    const refreshInterval = setInterval(() => {
+      cargarMesas({ quiet: true });
+      setRefreshToken((value) => value + 1);
+    }, 15000);
+    return () => {
+      clearInterval(refreshInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [cargarMesas]));
 
   useEffect(() => {
     let active = true;
@@ -64,21 +82,26 @@ export default function InicioScreen() {
       if (!active) return;
       if (queryError) { setReservas([]); setErrorDisponibilidad('No pudimos verificar la disponibilidad. Desliza para intentar de nuevo.'); }
       else setReservas(data || []);
-      setMesaSeleccionada(null);
       setLoadingDisponibilidad(false);
     };
     cargarReservasDelDia();
     return () => { active = false; };
   }, [fecha, refreshToken]);
 
-  const disponibilidad = (mesa) => {
-    if (!mesa.activa || loadingDisponibilidad || errorDisponibilidad) return false;
+  const disponibilidad = useCallback((mesa) => {
+    if (!mesa.activa || loadingDisponibilidad || error || errorDisponibilidad) return false;
     const slots = generarSlots(horariosDelDia(horarios, fecha), reservas.filter((item) => String(item.mesa_id) === String(mesa.id)));
     const futuros = fecha === fechaLocalISO(new Date())
       ? slots.filter((slot) => horaAMinutos(slot.hora) > new Date().getHours() * 60 + new Date().getMinutes())
       : slots;
     return futuros.some((slot) => !slot.ocupado);
-  };
+  }, [loadingDisponibilidad, error, errorDisponibilidad, horarios, fecha, reservas]);
+
+  useEffect(() => {
+    if (mesaSeleccionada === null) return;
+    const mesaElegida = mesas.find((item) => item.id === mesaSeleccionada);
+    if (!mesaElegida || !disponibilidad(mesaElegida)) setMesaSeleccionada(null);
+  }, [mesaSeleccionada, mesas, disponibilidad]);
 
   const fechaOpciones = fechas.map((item, index) => ({
     fecha: item,
@@ -87,7 +110,8 @@ export default function InicioScreen() {
   }));
 
   const reservar = () => {
-    if (mesaSeleccionada) router.push({ pathname: `/reservar/${mesaSeleccionada}`, params: { fecha } });
+    const mesa = mesas.find((item) => item.id === mesaSeleccionada);
+    if (mesa && disponibilidad(mesa)) router.push({ pathname: `/reservar/${mesaSeleccionada}`, params: { fecha } });
   };
 
   return (
@@ -99,7 +123,7 @@ export default function InicioScreen() {
       >
         <View style={styles.header}>
           <View style={styles.brandMark}><Ionicons name="pizza" size={21} color={C.white} /></View>
-          <View style={styles.brandText}><Text style={styles.brand}>KONYS PIZZA</Text><Text style={styles.tagline}>La pizza más icónica</Text></View>
+          <View style={styles.brandText}><Text style={styles.brand}>KONYS PIZZA</Text><Text style={styles.tagline}>La pizza más ikónica</Text></View>
           <Ionicons name="ellipsis-horizontal" size={22} color={C.ink} />
         </View>
 
