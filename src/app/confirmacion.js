@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import AppFooter from '../components/appFooter';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,7 @@ export default function ConfirmacionScreen() {
           <Text style={styles.note}>Te recomendamos llegar unos minutos antes. ¡Gracias por elegirnos!</Text>
         </View>
         <Pressable style={styles.button} onPress={() => router.replace('/tabs')}><Text style={styles.buttonText}>Volver al inicio</Text><Ionicons name="arrow-forward" size={17} color={C.orangeText} /></Pressable>
+        <AppFooter />
       </ScrollView>
     </SafeAreaView>
   );

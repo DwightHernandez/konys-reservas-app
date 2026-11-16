@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AppFooter from '../../components/appFooter';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -177,6 +178,7 @@ export default function InicioScreen() {
           <Text style={styles.buttonText}>Reservar mesa</Text><Ionicons name="arrow-forward" size={18} color={C.orangeText} />
         </Pressable>
         <View style={styles.bottomNote}><Ionicons name="heart" size={14} color={C.orange} /><Text style={styles.muted}>Te esperamos para compartir algo delicioso.</Text></View>
+        <AppFooter />
       </ScrollView>
     </SafeAreaView>
   );

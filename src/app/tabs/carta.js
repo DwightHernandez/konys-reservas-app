@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AppFooter from '../../components/appFooter';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +40,7 @@ export default function CartaScreen() {
         {error ? <Pressable style={styles.message} onPress={cargar}><Ionicons name="refresh" size={17} color={C.orange} /><Text style={styles.muted}>{error}</Text></Pressable> : null}
         {!loading && !error && visibles.length === 0 ? <View style={styles.empty}><Ionicons name="pizza-outline" size={32} color={C.orange} /><Text style={styles.emptyTitle}>Pronto tendremos novedades</Text><Text style={styles.muted}>Aún no hay platos visibles en esta categoría.</Text></View> : null}
         {visibles.map((plato) => <MenuCard key={plato.id} plato={plato} C={C} styles={styles} />)}
+        <AppFooter />
       </ScrollView>
     </SafeAreaView>
   );

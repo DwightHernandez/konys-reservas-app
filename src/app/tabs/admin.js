@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AppFooter from '../../components/appFooter';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -129,6 +130,7 @@ export default function AdminScreen() {
       <View style={styles.header}><View style={styles.brandMark}><Ionicons name="pizza" size={20} color={C.white} /></View><View><Text style={styles.brand}>KONYS PIZZA</Text><Text style={styles.muted}>Panel de administración</Text></View></View>
       <View style={styles.hero}><Text style={styles.badge}>ADMINISTRACIÓN</Text><Text style={styles.heroTitle}>Bienvenido al panel.</Text><Text style={styles.heroBody}>Acceso exclusivo para el equipo de Konys Pizza.</Text></View>
       <View style={styles.loginCard}><Ionicons name="lock-closed" size={22} color={C.orange} /><Text style={styles.sectionTitle}>PIN de seguridad</Text><TextInput style={styles.input} value={pin} onChangeText={setPin} secureTextEntry keyboardType="number-pad" placeholder="••••" placeholderTextColor={C.placeholder} maxLength={8} onSubmitEditing={() => pin === ADMIN_PIN ? setAuthorized(true) : Alert.alert('PIN incorrecto', 'Verifica el PIN e inténtalo de nuevo.')} /><Pressable style={styles.primaryButton} onPress={() => pin === ADMIN_PIN ? setAuthorized(true) : Alert.alert('PIN incorrecto', 'Verifica el PIN e inténtalo de nuevo.')}><Text style={styles.primaryButtonText}>Ingresar al panel</Text></Pressable></View>
+      <AppFooter />
     </ScrollView>
   </SafeAreaView>;
 
@@ -163,6 +165,7 @@ export default function AdminScreen() {
         {platos.map((plato) => <View key={plato.id} style={styles.listCard}><View style={styles.listIcon}><Ionicons name="pizza-outline" size={18} color={C.orange} /></View><View style={styles.listBody}><Text style={styles.itemTitle}>{plato.nombre}</Text><Text style={styles.muted}>{plato.categoria} · ${Number(plato.precio || 0).toLocaleString('es-CO')} · {plato.disponible ? 'Visible' : 'Oculto'}</Text><View style={styles.actions}><Pressable onPress={() => openForm('plato', plato)} style={styles.action}><Ionicons name="create-outline" size={15} color={C.ink} /><Text style={styles.actionText}>Editar</Text></Pressable><Pressable onPress={() => deleteRecord('platos', plato, 'plato')} style={styles.action}><Ionicons name="trash-outline" size={15} color={C.red} /><Text style={[styles.actionText, { color: C.red }]}>Borrar</Text></Pressable></View></View><Switch value={Boolean(plato.disponible)} onValueChange={async (value) => { const { error: updateError } = await supabase.from('platos').update({ disponible: value }).eq('id', plato.id); if (updateError) Alert.alert('No se pudo actualizar', updateError.message); else loadData(); }} trackColor={{ false: C.disabled, true: C.pale }} thumbColor={plato.disponible ? C.orange : C.white} /></View>)}
         <Pressable style={styles.primaryButton} onPress={() => openForm('plato')}><Ionicons name="add" size={18} color={C.orangeText} /><Text style={styles.primaryButtonText}>Agregar plato</Text></Pressable>
       </> : null}
+      <AppFooter />
     </ScrollView>
     <RecordModal C={C} styles={styles} visible={Boolean(modal)} modal={modal} form={form} setField={setField} onClose={closeModal} onSave={saveRecord} saving={saving} />
     <BookingConfirmationModal

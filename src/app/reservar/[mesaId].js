@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AppFooter from '../../components/appFooter';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -200,6 +201,7 @@ export default function ReservarScreen() {
           <Text style={styles.helper}>Máximo {mesa.capacidad} personas para esta mesa.</Text>
         </View>
         <View style={styles.reservationSummary}><Text style={styles.summaryLabel}>RESUMEN DE TU RESERVA</Text><Text style={styles.summaryTitle}>{mesa.nombre} · {hora || 'Elige una hora'}</Text><Text style={styles.muted}>{fechaLarga(fecha)} · {personas || 0} personas</Text></View>
+        <AppFooter />
       </ScrollView>
       <View style={styles.footer}>
         {slotError ? <Text style={styles.errorFooter}>{slotError}</Text> : null}
