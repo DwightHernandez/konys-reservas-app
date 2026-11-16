@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import AppFooter from '../../components/appFooter';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../services/supabase';
 import { dineroCOP } from '../../utils/reservas';
 import { useAppTheme } from '../../constants/theme';
@@ -18,14 +19,25 @@ export default function CartaScreen() {
   const [categoria, setCategoria] = useState('todas');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const cargar = useCallback(async () => {
-    setLoading(true); setError('');
+  const cargar = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
+    setError('');
     const { data, error: queryError } = await supabase.from('platos').select('*').eq('disponible', true).order('nombre');
     if (queryError) setError('No pudimos cargar la carta. Comprueba que la tabla “platos” esté disponible en Supabase.');
     else setPlatos(data || []);
     setLoading(false);
   }, []);
-  useEffect(() => { cargar(); }, [cargar]);
+  useFocusEffect(useCallback(() => {
+    cargar();
+    const channel = supabase.channel('cliente-carta')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'platos' }, () => cargar({ quiet: true }))
+      .subscribe();
+    const refreshInterval = setInterval(() => cargar({ quiet: true }), 15000);
+    return () => {
+      clearInterval(refreshInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [cargar]));
   const visibles = useMemo(() => categoria === 'todas' ? platos : platos.filter((plato) => String(plato.categoria || '').toLowerCase() === categoria), [categoria, platos]);
 
   return (
