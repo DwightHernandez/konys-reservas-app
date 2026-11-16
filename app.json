@@ -4,7 +4,7 @@
     "slug": "konys-reservas-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/konys/konysLogo-app.png",
     "scheme": "konysreservasapp",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -13,11 +13,10 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0F2B3D",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/konys/konysLogo-app.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.kedihm.konysreservasapp"
     },
     "web": {
       "output": "server",
@@ -42,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4d5925c2-6618-43e5-9e1f-79274fc950eb"
+      }
     }
   }
 }
