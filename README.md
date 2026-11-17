@@ -105,6 +105,8 @@ El perfil `preview` está configurado para generar un APK de distribución inter
 npx.cmd eas-cli@latest build --platform android --profile preview
 ```
 
+Descargar/consultar el APK generado: [Build de Konys Reservas en EAS](https://expo.dev/accounts/kedihm/projects/konys-reservas-app/builds/78ea519c-3d85-4c91-a1c9-a5c065bda065).
+
 El perfil `production` está pensado para una compilación de tienda; el perfil `preview` es el que actualmente genera el APK de distribución interna.
 
 Los perfiles `development`, `preview` y `production` declaran las variables públicas de Supabase en `eas.json`, para que estén disponibles durante el empaquetado remoto. Si se cambia el proyecto Supabase, actualiza `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` en los perfiles que se vayan a utilizar. El PIN de administrador no está definido en esos perfiles; configura `EXPO_PUBLIC_ADMIN_PIN` en el perfil de compilación si necesitas un PIN distinto al valor de respaldo `1234`.
